@@ -1,0 +1,15 @@
+data
+
+    address owner
+
+    //map{address: bool} canClaim
+
+functions 
+    //claimFunds(int amount)?
+
+    startAuction(string link)
+
+    endAuction()
+
+    placeBid()
+

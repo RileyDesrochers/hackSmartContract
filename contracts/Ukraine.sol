@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
 /*
 struct Auction { 
@@ -13,6 +14,13 @@ struct Auction {
    uint256 highestBid;
 }
 */
+
+contract JournalistMedia is ERC721 {
+    address public owner;
+    uint256 tokenID = 1;
+
+    constructor() ERC721('')
+}
 
 struct Sale { 
    address seller;
@@ -38,6 +46,16 @@ contract Ukraine {
         saleIndex = 0;
     }
 
+    modifier onlySeller(uint256 index) {
+        require(sales[index].seller == msg.sender);
+        _;
+    }
+
+    modifier onlyBeneficiary(uint256 index) {
+        require(sales[index].beneficiary == msg.sender);
+        _;
+    }
+
     function startSale(address beneficiary, string memory item, uint price) public {
         sales[saleIndex] = Sale(msg.sender, beneficiary, item, price, false, 0);
         saleIndex += 1;
@@ -56,9 +74,8 @@ contract Ukraine {
         }
     }
 
-    function sellerClaimFunds(uint256 index) public {
+    function sellerClaimFunds(uint256 index) public onlySeller(index) {
         Sale memory s = sales[index];
-        require(s.seller == msg.sender);
         if(s.sold) {
             uint price = s.price;
             address seller = s.seller;
@@ -67,17 +84,14 @@ contract Ukraine {
         }
     }
 
-    function beneficiaryClaimFunds(uint256 index) public {
-        Sale memory s = sales[index];
-        require(s.beneficiary == msg.sender);
-        if(s.sold) {
+    function beneficiaryClaimFunds(uint256 index) public onlyBeneficiary(index) {
+        if(sales[index].sold) {
             sales[index].timelock = block.timestamp + 14 * 24 * 60 * 60; //two weeks from now
         }
     }
 
-    function beneficiaryReceiveFunds(uint256 index) public {
+    function beneficiaryReceiveFunds(uint256 index) public onlyBeneficiary(index) {
         Sale memory s = sales[index];
-        require(s.beneficiary == msg.sender);
         if(block.timestamp > s.timelock) {
             uint price = s.price;
             address beneficiary = s.beneficiary;
@@ -86,10 +100,8 @@ contract Ukraine {
         }
     }
 
-    function cancelSale(uint256 index) public {//add modifyer
-        Sale memory s = sales[index];
-        require(s.seller == msg.sender);
-        if(!s.sold) 
+    function cancelSale(uint256 index) public onlySeller(index) {
+        if(!sales[index].sold) 
             delete sales[index];
     }
     

@@ -9,13 +9,13 @@ describe("Ukraine", function () {
 
     //expect(await ukraine.greet()).to.equal("Hello, world!"); viewAuction
 
-    const setGreetingTx = await ukraine.startAuction('https://mirror-api.com/editions')
+    //const setGreetingTx = await ukraine.startAuction('https://mirror-api.com/editions')
 
-    const auct = await ukraine.viewAuction(0)
+    //const auct = await ukraine.viewAuction(0)
 
     //console.log(auct.highestBid)
 
-    expect(auct.highestBid).to.equal(0)
+    //expect(auct.highestBid).to.equal(0)
 
 
     //const setGreetingTx = await ukraine.setGreeting("Hola, mundo!");

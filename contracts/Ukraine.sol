@@ -4,6 +4,135 @@ pragma solidity ^0.8.0;
 import "hardhat/console.sol";
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
+/*
+struct Auction { 
+   address seller;
+   string item;
+   uint endTime;
+   address highestBider;
+   uint256 highestBid;
+}
+*/
+
+struct Sale { 
+   address seller;
+   address beneficiary;
+   string item;
+   uint256 price;
+   bool sold;
+   uint timelock;
+}
+
+address constant currency = 0x765DE816845861e75A25fCA122bb6898B8B1282a; //cUSD on testnet
+
+contract Ukraine {
+    //address owner;
+    //uint256 auctionsIndex;
+    uint256 saleIndex;
+    //mapping(uint256 => Auction) auctions;
+    mapping(uint256 => Sale) sales;
+
+    constructor() {
+        //owner = msg.sender;
+        //auctionsIndex = 0;
+        saleIndex = 0;
+    }
+
+    function startSale(address beneficiary, string memory item, uint price) public {
+        sales[saleIndex] = Sale(msg.sender, beneficiary, item, price, false, 0);
+        saleIndex += 1;
+    }
+
+    function viewSale(uint256 index) public view returns (Sale memory) {
+        return sales[index];
+    }
+
+    function buyNFT(uint256 index) public {
+        Sale memory s = sales[index];
+        if(IERC20(currency).allowance(msg.sender, address(this)) > s.price){//does this acount for bal
+            IERC20(currency).transferFrom(msg.sender, address(this), s.price);
+            //mint NFT?
+            sales[index].sold = true;
+        }
+    }
+
+    function sellerClaimFunds(uint256 index) public {
+        Sale memory s = sales[index];
+        require(s.seller == msg.sender);
+        if(s.sold) {
+            uint price = s.price;
+            address seller = s.seller;
+            delete sales[index];//delete first to stop rentry attack
+            IERC20(currency).transfer(seller, price);
+        }
+    }
+
+    function beneficiaryClaimFunds(uint256 index) public {
+        Sale memory s = sales[index];
+        require(s.beneficiary == msg.sender);
+        if(s.sold) {
+            sales[index].timelock = block.timestamp + 14 * 24 * 60 * 60; //two weeks from now
+        }
+    }
+
+    function beneficiaryReceiveFunds(uint256 index) public {
+        Sale memory s = sales[index];
+        require(s.beneficiary == msg.sender);
+        if(block.timestamp > s.timelock) {
+            uint price = s.price;
+            address beneficiary = s.beneficiary;
+            delete sales[index];//delete first to stop rentry attack
+            IERC20(currency).transfer(beneficiary, price);
+        }
+    }
+
+    function cancelSale(uint256 index) public {//add modifyer
+        Sale memory s = sales[index];
+        require(s.seller == msg.sender);
+        if(!s.sold) 
+            delete sales[index];
+    }
+    
+    //IERC20(input).balanceOf(address(pair))
+/*
+    function startAuction(string memory item, uint length) public {
+        auctions[auctionsIndex] = Auction(msg.sender, item, block.timestamp + length, address(0), 0);
+    }
+
+    function placeBid(uint256 index, uint256 bid) public {
+        if(bid > auctions[index].highestBid){
+            auctions[index].highestBid = bid;
+            auctions[index].highestBider = msg.sender;
+            // move funds
+        }
+    }
+
+    function viewAuction(uint256 index) public view returns (Auction memory) {
+        return auctions[index];
+    }
+
+    //use sale
+    function endAuction(uint256 index) public {
+        if(block.timestamp > auctions[index].endTime){
+            //send money to who?
+            //how do they claim their NFT?
+            delete auctions[index];
+            //what if no one bids?
+        }
+    }
+*/
+
+
+/*
+    function setGreeting(string memory _greeting) public {
+        console.log("Changing greeting from '%s' to '%s'", greeting, _greeting);
+        greeting = _greeting;
+
+    }
+*/
+}
+
+/*
 library LowGasSafeMath {
     /// @notice Returns x + y, reverts if sum overflows uint256
     /// @param x The augend
@@ -45,100 +174,4 @@ library LowGasSafeMath {
         require((z = x - y) <= x == (y >= 0));
     }
 }
-
-/*
-struct Auction { 
-   address seller;
-   string item;
-   uint endTime;
-   address highestBider;
-   uint256 highestBid;
-}
 */
-
-struct Sale { 
-   address seller;
-   address beneficiary;
-   string item;
-   uint256 price;
-   bool sold;
-}
-
-address constant currency = 0x765de816845861e75a25fca122bb6898b8b1282a;
-
-contract Ukraine {
-    address owner;
-    //uint256 auctionsIndex;
-    uint256 saleIndex;
-    //mapping(uint256 => Auction) auctions;
-    mapping(uint256 => Sale) sales;
-
-    constructor() {
-        owner = msg.sender;
-        //auctionsIndex = 0;
-        saleIndex = 0;
-    }
-
-    function startSale(address beneficiary, string memory item, uint price) public {
-        sales[saleIndex] = Sale(msg.sender, beneficiary, item, price, false);
-    }
-
-    function viewSale(uint256 index) public view returns (Sale memory) {
-        return sales[index];
-    }
-
-    function buyNFT(uint256 index) public {
-        if(IERC20(currency).allowance(msg.sender, address(this)) > sales[index].price){
-            IERC20(currency).transferFrom(msg.sender, address(this), sales[index].price);
-            //mint NFT?
-            sales[index].sold = true;
-        }
-    }
-
-    function sellerClaimFunds(uint256 index) public {
-        if(sales[index].sold) {
-            uint price = sales[index].price;
-            address seller = sales[index].seller;
-            delete sales[index];//delete first to stop rentry attack
-            IERC20(currency).transfer(seller, price);
-            //IERC20(input).balanceOf(address(pair))
-        }
-    }
-
-/*
-    function startAuction(string memory item, uint length) public {
-        auctions[auctionsIndex] = Auction(msg.sender, item, block.timestamp + length, address(0), 0);
-    }
-
-    function placeBid(uint256 index, uint256 bid) public {
-        if(bid > auctions[index].highestBid){
-            auctions[index].highestBid = bid;
-            auctions[index].highestBider = msg.sender;
-            // move funds
-        }
-    }
-
-    function viewAuction(uint256 index) public view returns (Auction memory) {
-        return auctions[index];
-    }
-
-    //use sale
-    function endAuction(uint256 index) public {
-        if(block.timestamp > auctions[index].endTime){
-            //send money to who?
-            //how do they claim their NFT?
-            delete auctions[index];
-            //what if no one bids?
-        }
-    }
-*/
-
-
-/*
-    function setGreeting(string memory _greeting) public {
-        console.log("Changing greeting from '%s' to '%s'", greeting, _greeting);
-        greeting = _greeting;
-
-    }
-*/
-}
